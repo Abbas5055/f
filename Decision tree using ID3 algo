@@ -1,0 +1,104 @@
+import math
+from collections import Counter
+
+# Function to calculate entropy
+def entropy(data):
+    total_instances = len(data)
+    if total_instances == 0:
+        return 0
+    label_counts = Counter([row[-1] for row in data])
+    probs = [count / total_instances for count in label_counts.values()]
+    return -sum(p * math.log2(p) for p in probs if p > 0)
+
+# Function to calculate information gain
+def info_gain(data, split_attribute_index):
+    total_entropy = entropy(data)
+    attribute_values = [row[split_attribute_index] for row in data]
+    unique_values = set(attribute_values)
+    
+    weighted_entropy = sum(
+        (attribute_values.count(value) / len(data)) * entropy([row for row in data if row[split_attribute_index] == value])
+        for value in unique_values
+    )
+    
+    return total_entropy - weighted_entropy
+
+# Function to find the best attribute to split on
+def find_best_split(data):
+    num_attributes = len(data[0]) - 1
+    best_gain = 0
+    best_attribute = None
+    
+    for attribute_index in range(num_attributes):
+        gain = info_gain(data, attribute_index)
+        if gain > best_gain:
+            best_gain = gain
+            best_attribute = attribute_index
+    
+    return best_attribute
+
+# Function to build the decision tree
+def build_tree(data, attributes):
+    labels = [row[-1] for row in data]
+    if len(set(labels)) == 1:
+        return labels[0]
+    
+    if len(data[0]) == 1:
+        return Counter(labels).most_common(1)[0][0]
+    
+    best_attribute = find_best_split(data)
+    tree = {attributes[best_attribute]: {}}
+    unique_values = set(row[best_attribute] for row in data)
+    
+    for value in unique_values:
+        subset = [row[:best_attribute] + row[best_attribute+1:] for row in data if row[best_attribute] == value]
+        subtree = build_tree(subset, attributes[:best_attribute] + attributes[best_attribute+1:])
+        tree[attributes[best_attribute]][value] = subtree
+    
+    return tree
+
+# Function to classify a sample with the decision tree
+def classify(tree, sample, attributes):
+    if not isinstance(tree, dict):
+        return tree
+    
+    attribute = next(iter(tree))
+    attribute_index = attributes.index(attribute)
+    attribute_value = sample[attribute_index]
+    
+    if attribute_value in tree[attribute]:
+        return classify(tree[attribute][attribute_value], sample, attributes)
+    else:
+        return None
+
+# Main function to demonstrate the ID3 algorithm
+def main():
+    data = [
+        ['Sunny', 'Hot', 'High', 'Weak', 'No'],
+        ['Sunny', 'Hot', 'High', 'Strong', 'No'],
+        ['Overcast', 'Hot', 'High', 'Weak', 'Yes'],
+        ['Rain', 'Mild', 'High', 'Weak', 'Yes'],
+        ['Rain', 'Cool', 'Normal', 'Weak', 'Yes'],
+        ['Rain', 'Cool', 'Normal', 'Strong', 'No'],
+        ['Overcast', 'Cool', 'Normal', 'Strong', 'Yes'],
+        ['Sunny', 'Mild', 'High', 'Weak', 'No'],
+        ['Sunny', 'Cool', 'Normal', 'Weak', 'Yes'],
+        ['Rain', 'Mild', 'Normal', 'Weak', 'Yes'],
+        ['Sunny', 'Mild', 'Normal', 'Strong', 'Yes'],
+        ['Overcast', 'Mild', 'High', 'Strong', 'Yes'],
+        ['Overcast', 'Hot', 'Normal', 'Weak', 'Yes'],
+        ['Rain', 'Mild', 'High', 'Strong', 'No']
+    ]
+    
+    attributes = ['Outlook', 'Temperature', 'Humidity', 'Wind']
+    
+    decision_tree = build_tree(data, attributes)
+    print("Decision Tree:")
+    print(decision_tree)
+    
+    sample = ['Sunny', 'Cool', 'High', 'Strong']
+    prediction = classify(decision_tree, sample, attributes)
+    print(f"Prediction for {sample}: {prediction}")
+
+if __name__ == "__main__":
+    main()
